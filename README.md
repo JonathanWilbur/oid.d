@@ -15,7 +15,7 @@ push to the D Standard Library.
 There are two constructors to create OID objects. One takes an array of numbers;
 another takes an array of OIDNode structs.
 
-```
+```d
 OID oid = new OID([1, 3, 6, 1]);
 OID oid = new OID(1, 3, 6, 1);
 OID oid = new OID(
@@ -29,28 +29,28 @@ OID oid = new OID(
 If you create an OID using the OID(int[]) constructor, none of the OID nodes
 have labels / descriptors. You can set them with these methods:
 
-```
-    oid.descriptor(0, "iso"); // 0 is the index
-    oid.descriptors([ "iso", "", "dod", "internet"]);
-    oid.descriptors("iso", "", "dod", "internet");
+```d
+oid.descriptor(0, "iso"); // 0 is the index
+oid.descriptors([ "iso", "", "dod", "internet"]);
+oid.descriptors("iso", "", "dod", "internet");
 ```
 
 Once you have created the OID, you can return the OID in various formats. For
 all but the URN, if a node has a descriptor, the output will display the
 descriptor instead of the number.
 
-```
-    oid.numericArray // [ 1L, 3L, 6L, 1L ]
-    oid.dotNotation // iso.3.dod.internet
-    oid.asn1Notation // {iso 3 dod internet}
-    oid.iriNotation // /iso/3/dod/internet
-    oid.urnNotation // urn:oid:1:3:6:1
+```d
+oid.numericArray // [ 1L, 3L, 6L, 1L ]
+oid.dotNotation // iso.3.dod.internet
+oid.asn1Notation // {iso 3 dod internet}
+oid.iriNotation // /iso/3/dod/internet
+oid.urnNotation // urn:oid:1:3:6:1
 ```
 
 And, of course, you have the length property (read-only):
 
-```
-    oid.length // 4
+```d
+oid.length // 4
 ```
 
 ## See Also
