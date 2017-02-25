@@ -1,0 +1,7 @@
+{
+	"name": "oid",
+	"description": "A D Library for ASN.1 Object Identifiers",
+	"authors": [ "Jonathan M. Wilbur" ],
+	"license": "BSL-1.0",
+	"targetType": "library"
+}
