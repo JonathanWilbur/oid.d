@@ -14,11 +14,15 @@
     Date: February 25th, 2017
     License: $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
     Standards: $(LINK2 http://www.itu.int/rec/T-REC-X.690/en, X.690)
-    Version: 1.0.0
+    Version: 1.0.1
     See_Also:
         $(LINK2 http://www.itu.int/rec/T-REC-X.690/en, X.690)
         $(LINK2 https://en.wikipedia.org/wiki/Object_identifier, Wikipedia: Object Identifier)
 */
+//TODO: Learn more about SNMP's use of OIDs so I can better implement OID
+//TODO: Learn more about HL7's use of OIDs so I can better implement OID
+//TODO: Add contracts
+//TODO: Add more extreme unit tests
 module oid;
 
 version (unittest)
@@ -71,11 +75,16 @@ class OIDDescriptorException : OIDException
 */
 public class OID
 {
-    private import std.traits : isIntegral;
-    private import std.conv : text;
-    private import std.exception : enforce;
+    import std.traits : isIntegral;
+    import std.conv : text;
+    import std.exception : enforce;
+    import std.algorithm.searching : canFind;
 
     private OIDNode[] oidNodes = [];
+    /*TODO: 
+        Implement a public bool that enables a user to switch between displaying
+        only numbers or descriptors (if available).
+    */
 
     /**
         A struct representing a single node in an OID, which has a mandatory
@@ -94,7 +103,7 @@ public class OID
                 $(LINK2 https://en.wikipedia.org/wiki/Graphic_character, Wikipedia: Graphic Characters)
         */
         this(T)(T number, string descriptor = "")
-            if (isIntegral!T)
+        if (isIntegral!T)
         {
             this.number = number;
             this.descriptor = descriptor;
@@ -144,10 +153,10 @@ public class OID
             Throws:
                 OIDNumberException if the number is negative or greater than ulong.max
         */
-        @property public void number(T)(T number)
-            if (isIntegral!T)
+        @property public void number(T)(T number) //REVIEW: Should this really accept anything integral? Why not just int?
+        if (isIntegral!T)
         {
-            enforce!OIDNumberException(number > 0, "OID node numbers cannot be negative.");
+            enforce!OIDNumberException(number >= 0, "OID node numbers cannot be negative.");
             enforce!OIDNumberException(number <= ulong.max, "OID node number too large.");
             this._number = cast(ulong) number;
         }
@@ -172,10 +181,12 @@ public class OID
         @property public void descriptor(string descriptor)
         {
             import std.ascii : isGraphical;
-            enforce!OIDDescriptorException(descriptor.length <= 65536, "OID node descriptor too large.");
+            enforce!OIDDescriptorException(descriptor.length <= 65536, 
+                "OID node descriptor too large.");
             foreach(c; descriptor)
             {
-                enforce!OIDDescriptorException(c.isGraphical, "Object descriptors must be a GraphicalString.");
+                enforce!OIDDescriptorException(c.isGraphical, 
+                    "Object descriptors must be a GraphicalString.");
             }
             this._descriptor = descriptor;
         }
@@ -201,10 +212,16 @@ public class OID
             OIDNumberException if any number is negative or greater than ulong.max
     */
     this(T)(T[] oidNumberArray ...)
-        if (isIntegral!T)
+    if (isIntegral!T)
     {
-        enforce!OIDLengthException(oidNumberArray.length > 0, "No OID numbers provided to constructor.");
-        enforce!OIDLengthException(oidNumberArray.length <= 64, "OID is too long.");
+        enforce!OIDLengthException(oidNumberArray.length > 0, 
+            "No OID numbers provided to constructor.");
+        enforce!OIDLengthException(oidNumberArray.length <= 64, 
+            "OID is too long.");
+        enforce!OIDNumberException([0,1,2].canFind(oidNumberArray[0]), 
+            "First OID node can only be 0, 1, or 2.");
+        enforce!OIDNumberException(oidNumberArray.length == 1 || oidNumberArray[1] < 40, 
+            "Second OID node cannot be greater than 39.");
         foreach (number; oidNumberArray)
         {
             oidNodes ~= OIDNode(number, "");
@@ -214,12 +231,11 @@ public class OID
     ///
     unittest
     {
-        assertNotThrown!OIDException
-            (enforce!OIDException(new OID([1, 22, 333]), "Exception thrown!"));
-        assertThrown!OIDNumberException
-            (enforce!OIDNumberException(new OID([1, 22, -333]), "Negative numbers in OID."));
-        assertThrown!OIDLengthException
-            (enforce!OIDLengthException(new OID([]), "No OID numbers provided to constructor."));
+        assertNotThrown!Exception(new OID([1, 22, 333]));
+        assertThrown!OIDNumberException(new OID([1, 22, -333]));
+        assertThrown!OIDLengthException(new OID([]));
+        assertThrown!OIDNumberException(new OID([8]));
+        assertThrown!OIDNumberException(new OID([1,128]));
     }
 
     /**
@@ -233,8 +249,14 @@ public class OID
     */
     this(OIDNode[] nodes ...)
     {
-        enforce!OIDLengthException(nodes.length > 0, "No OID numbers provided to constructor.");
-        enforce!OIDLengthException(nodes.length <= 64, "OID is longer than 64 nodes.");
+        enforce!OIDLengthException(nodes.length > 0, 
+            "No OID numbers provided to constructor.");
+        enforce!OIDLengthException(nodes.length <= 64, 
+            "OID is longer than 64 nodes.");
+        enforce!OIDNumberException([0,1,2].canFind(nodes[0].number), 
+            "First OID node can only be 0, 1, or 2.");
+        enforce!OIDNumberException(nodes.length == 0 || nodes[1].number < 40, 
+            "Second OID node cannot be greater than 39.");
         this.oidNodes = nodes;
     }
 
@@ -244,8 +266,7 @@ public class OID
         OIDNode node1 = OIDNode(1, "iso");
         OIDNode node2 = OIDNode(3, "");
         OIDNode node3 = OIDNode(6, "dod");
-        OID oid = new OID(node1, node2, node3);
-        assert(oid.dotNotation == "iso.3.dod");
+        assertNotThrown!Exception(new OID(node1, node2, node3));
 
         // Try to create an OID greater than 64 nodes long.
         OIDNode[] nodes = [];
@@ -253,15 +274,14 @@ public class OID
         {
             nodes ~= OIDNode(7, "fail");
         }
-        assertThrown!OIDLengthException
-            (enforce!OIDLengthException(new OID(nodes)));
+        assertThrown!OIDLengthException(new OID(nodes));
     }
 
     /**
         Returns: The descriptor at the specified index.
     */
-    public string descriptor(T)(T index)
-        if (isIntegral!T)
+    public string descriptor(T)(T index) //REVIEW: Should this really accept anything integral? Why not just int?
+    if (isIntegral!T)
     {
         return this.oidNodes[index].descriptor;
     }
@@ -289,8 +309,8 @@ public class OID
             RangeError if the node addressed is non-existent or negative.
             OIDDescriptorException if the descriptor is too long or non graphical.
     */
-    public void descriptor(T)(T index, string descriptor)
-        if (isIntegral!T)
+    public void descriptor(T)(T index, string descriptor) //REVIEW: Should this really accept anything integral? Why not just int?
+    if (isIntegral!T)
     {
         //REVIEW: Is there any advantage to catching / throwing RangeErrors here?
         //REVIEW: Should index be a ubyte?
@@ -508,6 +528,9 @@ public class OID
     invariant
     {
         assert(this.oidNodes.length > 0, "OID length is zero!");
+        assert([0,1,2].canFind(this.oidNodes[0].number), "OID node #1 is not 0, 1, or 2!");
+        if (this.oidNodes.length > 1)
+            assert(this.oidNodes[1].number < 40, "OID node #2 is greater than 39!");
     }
 
 }

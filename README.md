@@ -3,12 +3,26 @@
 * Author: Jonathan M. Wilbur
 * Copyright: Jonathan M. Wilbur
 * License: [Boost License 1.0](http://www.boost.org/LICENSE_1_0.txt)
-* Date: February 25th, 2017
-* Version: 1.0.0
+* Date: March 2nd, 2017
+* Version: 1.0.1
 
 A OID class for strongly-typed ASN.1 Object Identifiers in D. This will
 eventually be incorporated into a full-blown ASN.1 library, which I hope to
 push to the D Standard Library.
+
+## Why Can't I Just Use an Array of Integers?
+
+You probably could, but have you considered this?
+
+* The first node of an OID can only be either 0, 1, or 2.
+* The second node of an OID cannot be greater than 40.
+* Each node of an OID can have a string (descriptor) that describes what that node means
+* Strongly-typing a language correlates with fewer bugs \[citation needed\]
+
+This library provides a strongly-typed OID, which throws exceptions if the above
+restrictions are violated, and maps descriptors to nodes. Plus, this library
+makes sure that you can't have a gigantic OID (mitigating the possibilities for
+OID-related Denial-of-Service attacks).
 
 ## Basic Usage
 
